@@ -1,12 +1,32 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+"""
+   This script parses the HTML of a post at the Okayplayer boards, and converts
+   it to an array of Post objects, which are then suitable for reformatting or reuse in pretty
+   much any way you can think of. 
+
+   If you'd like to build an OKP app of some sort, this will probably help. 
+
+   Usage:
+
+      p = ThreadParser(html)
+
+      # Root reply's author
+      p.replies[0].author
+
+      # Content of the last post in the thread.
+      p.replies[-1].message_text
+
+
+   Author: kbank@gmail.com
+"""
+
 
 # Built ins
 import datetime
-import logging
 import re
-from pprint import pprint
 
-# OKP lib stuff.
+# okp module is not quite ready for prime time. We don't use it much in this
+# module anyway, so we just monkey patch in the stuff we would have used.
 try:
    from okp import REPLY_URL, get_default_time_offset
 except ImportError:
@@ -17,6 +37,16 @@ except ImportError:
 
 
 class Token(object):
+
+   """
+      This class represents a "token" in the post, which is simply a piece of
+      data - an author, an avatar url, a post title... Pretty much any
+      information we hope to glean from the thread. 
+
+      Tokens are parsed via well-tested regular expressions. That means this
+      code is fast but brittle. Changing these regular expressions means your
+      code may break in a hurry. Test early and often.
+   """
    
    # Token type constants
    MESG_ID = 'MESG_ID'
@@ -63,6 +93,8 @@ class Token(object):
 
 
 class ThreadParser(object):
+   """
+   """
    
    def __init__(self, html):
       self.html = html
@@ -88,11 +120,12 @@ class ThreadParser(object):
       since been deleted will have different HTML than a still-active user).
 
       My strategy here is to parse ALL post-related data from the HTML, along
-      with a special marker datum that marks the end of a post. This datum tends
-      to be stable even when other data is broken. I can then chunk all of the
-      data, using the marker as a boundary, and try to create a post from a
-      chunk of data. Where constructing a post object with the data fails, I can
-      discard the data and continue. """
+      with a special marker token (Token.BREAKER) that reliably marks the end of
+      a post. This datum tends to be stable even when other data is broken. I
+      can then chunk all of the data into individual posts, using the marker as
+      a boundary, and try to create a post from a chunk of data. Where
+      constructing a post object with the data fails, I can discard the data and
+      continue. """
 
       # Grab all the post data
       self.tokens = []
@@ -132,21 +165,11 @@ class ThreadParser(object):
       self.replies[0].message_num = 0
       self.replies[0].message_parent = -1
    
-   def do_post_stats(self):
-      max_depth = 20
-      for base in self.replies:
-         reply = base
-         depth = 0
-         while reply.parent_num > 0 and depth < max_depth:
-            depth += 1
-            reply = self.thread[reply.parent_num]
-         base.depth = depth
-
-         base.responses = [p for p in self.replies if p.parent_num == base.num]
-         base.popularity = len(base.responses)
-      
 
 class Reply(object):
+   """ Class representing a single reply in a post. Check out the __init__
+   function to see which fields are available after parsing. """
+
    def __init__(self, forum_id, topic_id):
       self.forum_id = forum_id
       self.topic_id = topic_id
@@ -168,6 +191,12 @@ class Reply(object):
       self.url = ''
 
    def consume(self, post):
+      """ A 'post' is a list of Tokens. Not all posts will have all tokens
+      present. In fact, no posts will have all tokens present, since some pairs
+      of tokens are mutually exclusive within a single post.  
+
+      This function takes what tokens are present and assigns values to it's own
+      fields where it can. """
 
       self.message = []
 
