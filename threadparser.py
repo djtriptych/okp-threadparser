@@ -22,10 +22,15 @@
 
 
 # Built ins
+import calendar
+import collections
 import datetime
+import fileinput
+import json
+import pprint
 import re
 
-# okp module is not quite ready for prime time. We don't use it much in this
+# OKP module is not quite ready for prime time. We don't use it much in this
 # module anyway, so we just monkey patch in the stuff we would have used.
 try:
    from okp import REPLY_URL, get_default_time_offset
@@ -93,8 +98,7 @@ class Token(object):
 
 
 class ThreadParser(object):
-   """
-   """
+   """ Parses an OKP thread into an internal representation. """
    
    def __init__(self, html):
       self.html = html
@@ -266,3 +270,64 @@ class Reply(object):
             s += "%-20s: %s\n" % (field, unicode(self.__dict__[field])[:40])
       return s
 
+   @property
+   def dict(self):
+
+      def to_epoch(dt):
+         if not hasattr(dt, 'timetuple'):
+            return None
+         return calendar.timegm(dt.timetuple())
+
+      return {
+         'topic_id' :self.topic_id,
+         'message_id' :self.message_id,
+         'message_title' :self.message_title,
+         'message_parent' :self.message_parent,
+         'message_text' :self.message_text,
+         'message_date' :to_epoch(self.message_date),
+         'message_num' :self.message_num,
+         'author_name' :self.author_name,
+         'author_avatar' :self.author_avatar,
+         'author_id' :self.author_id,
+         'author_is_charter' :self.author_is_charter,
+         'author_join_date' :to_epoch(self.author_join_date),
+         'author_num_posts' :self.author_num_posts,
+         'url' :self.url,
+      }
+
+   @property
+   def json(self):
+      return json.dumps(self.dict, separators=(',',':'))
+
+
+def parse_links(tp, needle=None, unique=False):
+   """ Given a thread parse return a dictionary where keys are authors and
+   values are lists of links """
+
+   links = collections.defaultdict(list)
+   # This is NOT robust enough for a general purpose link scraper, but works
+   # well for OKP.
+   link_re = re.compile('href="(.*?)"')
+
+   for reply in tp.replies:
+      for match in link_re.finditer(reply.message_text):
+         link = match.group(1)
+         if not needle or needle in link.lower():
+            links[reply.author_id].append(link)
+   return links
+
+def show_author_ids(tp):
+   for id in set(r.author_id for r in tp.replies):
+      print id
+
+if __name__ == '__main__':
+   NEWLINE = '\n'
+   
+   # Grab entire file from stdin or as '-f' argument and parse
+   post = NEWLINE.join(list(fileinput.input()))
+   tp = ThreadParser(post)
+   for reply in tp.replies:
+      print reply.json
+
+   # links = parse_links(tp, 'youtube', unique=True)
+   # authors = show_author_ids(tp)
