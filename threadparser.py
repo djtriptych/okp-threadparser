@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+
 """
    This script parses the HTML of a post at the Okayplayer boards, and converts
    it to an array of Post objects, which are then suitable for reformatting or reuse in pretty
-   much any way you can think of. 
+   much any way you can think of.
 
-   If you'd like to build an OKP app of some sort, this will probably help. 
+   If you'd like to build an OKP app of some sort, this will probably help.
 
    Usage:
 
@@ -35,8 +36,8 @@ import re
 try:
    from okp import REPLY_URL, get_default_time_offset
 except ImportError:
-   BASE_URL   = "http://board.okayplayer.com/okp.php"
-   REPLY_URL  = BASE_URL + "?az=show_topic&forum=%d&topic_id=%d#%d"
+   BASE_URL  = "http://board.okayplayer.com/okp.php"
+   REPLY_URL = BASE_URL + "?az=show_topic&forum=%d&topic_id=%d#%d"
    # OKP's time stamps are WAY off, but by a constant amount (I hope)
    get_default_time_offset = lambda: datetime.timedelta(0, 3757)
 
@@ -46,13 +47,13 @@ class Token(object):
    """
       This class represents a "token" in the post, which is simply a piece of
       data - an author, an avatar url, a post title... Pretty much any
-      information we hope to glean from the thread. 
+      information we hope to glean from the thread.
 
       Tokens are parsed via well-tested regular expressions. That means this
       code is fast but brittle. Changing these regular expressions means your
       code may break in a hurry. Test early and often.
    """
-   
+
    # Token type constants
    MESG_ID = 'MESG_ID'
    MESG_TITLE = 'MESG_TITLE'
@@ -69,19 +70,19 @@ class Token(object):
    BREAKER = 'BREAKER'
 
    tokenizers = {
-      MESG_ID : re.compile(r'a name="(\d+)"'),
-      MESG_TITLE : re.compile(r'<strong>.*?"(.*?)"</strong>'),
-      MESG_NUM : re.compile(r'<strong>(\d+).*?".*?"</strong>'),
-      MESG_TEXT : re.compile(r'<p class="dcmessage">(.*?)</p>', re.DOTALL),
-      MESG_DATE : re.compile(r'class="dcdate">(.*?)<'),
-      MESG_PARENT : re.compile(r'Reply # (\d+)'),
-      AUTHOR_AVATAR: re.compile(r'src="(.*?)" height="60"'),
+      MESG_ID        : re.compile(r'a name="(\d+)"'),
+      MESG_TITLE     : re.compile(r'<strong>.*?"(.*?)"</strong>'),
+      MESG_NUM       : re.compile(r'<strong>(\d+).*?".*?"</strong>'),
+      MESG_TEXT      : re.compile(r'<p class="dcmessage">(.*?)</p>', re.DOTALL),
+      MESG_DATE      : re.compile(r'class="dcdate">(.*?)<'),
+      MESG_PARENT    : re.compile(r'Reply # (\d+)'),
+      AUTHOR_AVATAR  : re.compile(r'src="(.*?)" height="60"'),
       AUTHOR_CHARTER : re.compile(r'class="dcauthorinfo">(Charter member)<'),
-      AUTHOR_NEWBIE : re.compile(r'class="dcauthorinfo">Member since (.*?)<'),
-      AUTHOR_POSTS : re.compile(r'class="dcauthorinfo">.*?(\d+) post'),
-      AUTHOR_ID : re.compile(r'user_profiles&u_id=(.*?)"\s*?class') ,
-      AUTHOR_NAME : re.compile(r'class="dcauthorlink">(.*?)<'),
-      BREAKER : re.compile(r'(Printer-friendly copy)'),
+      AUTHOR_NEWBIE  : re.compile(r'class="dcauthorinfo">Member since (.*?)<'),
+      AUTHOR_POSTS   : re.compile(r'class="dcauthorinfo">.*?(\d+) post'),
+      AUTHOR_ID      : re.compile(r'user_profiles&u_id=(.*?)"\s*?class') ,
+      AUTHOR_NAME    : re.compile(r'class="dcauthorlink">(.*?)<'),
+      BREAKER        : re.compile(r'(Printer-friendly copy)'),
    }
 
    def __init__(self, type, data, position):
@@ -99,7 +100,7 @@ class Token(object):
 
 class ThreadParser(object):
    """ Parses an OKP thread into an internal representation. """
-   
+
    def __init__(self, html):
       self.html = html
       self.replies = []
@@ -113,7 +114,7 @@ class ThreadParser(object):
       self.get_replies()
 
       # And reap the benefits
-      #self.thread = dict((p.num, p) for p in self.replies) 
+      #self.thread = dict((p.num, p) for p in self.replies)
 
    def parse(self):
       """ OKP's HTML is extremely fragile, non-standard, and even inconsistent
@@ -168,7 +169,6 @@ class ThreadParser(object):
 
       self.replies[0].message_num = 0
       self.replies[0].message_parent = -1
-   
 
 class Reply(object):
    """ Class representing a single reply in a post. Check out the __init__
@@ -197,7 +197,7 @@ class Reply(object):
    def consume(self, post):
       """ A 'post' is a list of Tokens. Not all posts will have all tokens
       present. In fact, no posts will have all tokens present, since some pairs
-      of tokens are mutually exclusive within a single post.  
+      of tokens are mutually exclusive within a single post. 
 
       This function takes what tokens are present and assigns values to it's own
       fields where it can. """
@@ -217,7 +217,7 @@ class Reply(object):
 
          elif token.type == Token.MESG_TEXT:
             self.message.append(token.data)
-            
+           
          elif token.type == Token.MESG_DATE:
             self.message_date = datetime.datetime.strptime(token.data[4:], "%b-%d-%y %I:%M %p")
             self.message_date += get_default_time_offset()
@@ -242,7 +242,7 @@ class Reply(object):
          elif token.type == Token.AUTHOR_CHARTER:
             self.author_is_charter = True
             self.author_join_date = False
-            
+
          elif token.type == Token.AUTHOR_NEWBIE:
             self.author_join_date = re.sub(r'st|nd|rd|th', '', token.data)
             self.author_join_date = datetime.datetime.strptime(self.author_join_date, '%b %d %Y')
@@ -253,8 +253,8 @@ class Reply(object):
 
       self.message_text = ''.join(self.message)
 
-      self.url = REPLY_URL % (int(self.forum_id), 
-                                  int(self.topic_id), 
+      self.url = REPLY_URL % (int(self.forum_id),
+                                  int(self.topic_id),
                                   int(self.message_id))
 
    def __str__(self):
@@ -322,12 +322,13 @@ def show_author_ids(tp):
 
 if __name__ == '__main__':
    NEWLINE = '\n'
-   
+
    # Grab entire file from stdin or as '-f' argument and parse
    post = NEWLINE.join(list(fileinput.input()))
+
+   # iso-8859-1 is OKP's (undeclared) encoding.
+   post = post.decode('iso-8859-1')
+
    tp = ThreadParser(post)
    for reply in tp.replies:
       print reply.json
-
-   # links = parse_links(tp, 'youtube', unique=True)
-   # authors = show_author_ids(tp)
